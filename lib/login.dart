@@ -1,117 +1,137 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'SignUp.dart';
 
-enum GenderList { male, female }
-
-class MyForm extends StatefulWidget {
+class Login extends StatefulWidget {
   @override
-  State<StatefulWidget> createState() => MyFormState();
+  _LoginState createState() => _LoginState();
 }
 
-class MyFormState extends State {
-  final _formKey = GlobalKey<FormState>();
-  GenderList _gender;
-  bool _agreement = false;
+class _LoginState extends State<Login> {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
-  Widget build(BuildContext context) {
-    return Container(
-        padding: EdgeInsets.all(10.0),
-        child: new Form(
-            key: _formKey,
-            child: new Column(
-              children: <Widget>[
-                new SizedBox(height: 20.0),
-                new Text(
-                  'Контактный E-mail:',
-                  style: TextStyle(fontSize: 20.0),
-                ),
-                new TextFormField(validator: (value) {
-                  if (value.isEmpty) return 'Пожалуйста введите свой Email';
+  String _email, _password;
 
-                  String p =
-                      "[a-zA-Z0-9+.\_\%-+]{1,256}@[a-zA-Z0-9][a-zA-Z0-9-]{0,64}(.[a-zA-Z0-9][a-zA-Z0-9-]{0,25})+";
-                  RegExp regExp = new RegExp(p);
+  checkAuthentification() async {
+    _auth.authStateChanges().listen((user) {
+      if (user != null) {
+        print(user);
 
-                  if (regExp.hasMatch(value)) return null;
+        Navigator.pushReplacementNamed(context, "/");
+      }
+    });
+  }
 
-                  return 'Это не E-mail';
-                }),
-                new Text(
-                  'Пароль:',
-                  style: TextStyle(fontSize: 20.0),
-                ),
-                new TextFormField(validator: (value) {
-                  if (value.isEmpty) return 'Придуайте пароль';
-                }),
-                new SizedBox(height: 20.0),
-                new Text(
-                  'Ваш пол:',
-                  style: TextStyle(fontSize: 20.0),
-                ),
-                new RadioListTile(
-                  title: const Text('Мужской'),
-                  value: GenderList.male,
-                  groupValue: _gender,
-                  onChanged: (GenderList value) {
-                    setState(() {
-                      _gender = value;
-                    });
-                  },
-                ),
-                new RadioListTile(
-                  title: const Text('Женский'),
-                  value: GenderList.female,
-                  groupValue: _gender,
-                  onChanged: (GenderList value) {
-                    setState(() {
-                      _gender = value;
-                    });
-                  },
-                ),
-                new SizedBox(height: 20.0),
-                new CheckboxListTile(
-                    value: _agreement,
-                    title: new Text('Я ознакомлен' +
-                        (_gender == null
-                            ? '(а)'
-                            : _gender == GenderList.male
-                                ? ''
-                                : 'а') +
-                        ' с документом "Согласие на обработку персональных данных" и даю согласие на обработку моих персональных данных в соответствии с требованиями "Федерального закона О персональных данных № 152-ФЗ".'),
-                    onChanged: (bool value) =>
-                        setState(() => _agreement = value)),
-                new SizedBox(height: 20.0),
-                new RaisedButton(
+  @override
+  void initState() {
+    super.initState();
+    this.checkAuthentification();
+  }
+
+  login() async {
+    if (_formKey.currentState.validate()) {
+      _formKey.currentState.save();
+
+      try {
+        await _auth.signInWithEmailAndPassword(
+            email: _email, password: _password);
+      } catch (e) {
+        showError(e.message);
+        print(e);
+      }
+    }
+  }
+
+  showError(String errormessage) {
+    showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text('ERROR'),
+            content: Text(errormessage),
+            actions: <Widget>[
+              TextButton(
                   onPressed: () {
-                    if (_formKey.currentState.validate()) {
-                      Color color = Colors.red;
-                      String text;
-
-                      if (_gender == null)
-                        text = 'Выберите свой пол';
-                      else if (_agreement == false)
-                        text = 'Необходимо принять условия соглашения';
-                      else {
-                        text = 'Форма успешно заполнена';
-                        color = Colors.green;
-                      }
-
-                      Scaffold.of(context).showSnackBar(SnackBar(
-                        content: Text(text),
-                        backgroundColor: color,
-                      ));
-                    }
+                    Navigator.of(context).pop();
                   },
-                  child: Text('Проверить'),
-                  color: Colors.blue,
-                  textColor: Colors.white,
+                  child: Text('OK'))
+            ],
+          );
+        });
+  }
+
+  navigateToSignUp() async {
+    Navigator.push(context, MaterialPageRoute(builder: (context) => SignUp()));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+        body: SingleChildScrollView(
+      child: Container(
+        child: Column(
+          children: <Widget>[
+            Container(
+              height: 400,
+              child: Image(
+                image: AssetImage("assets/flag_heart.png"),
+                fit: BoxFit.fill,
+              ),
+            ),
+            Container(
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  children: <Widget>[
+                    Container(
+                      child: TextFormField(
+                          validator: (input) {
+                            if (input.isEmpty) return 'Enter Email';
+                          },
+                          decoration: InputDecoration(
+                              labelText: 'Email',
+                              prefixIcon: Icon(Icons.email)),
+                          onSaved: (input) => _email = input),
+                    ),
+                    Container(
+                      child: TextFormField(
+                          validator: (input) {
+                            if (input.length < 6)
+                              return 'Provide Minimum 6 Character';
+                          },
+                          decoration: InputDecoration(
+                            labelText: 'Password',
+                            prefixIcon: Icon(Icons.lock),
+                          ),
+                          obscureText: true,
+                          onSaved: (input) => _password = input),
+                    ),
+                    SizedBox(height: 20),
+                    RaisedButton(
+                      padding: EdgeInsets.fromLTRB(70, 10, 70, 10),
+                      onPressed: login,
+                      child: Text('LOGIN',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 20.0,
+                              fontWeight: FontWeight.bold)),
+                      color: Colors.blue,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30.0),
+                      ),
+                    )
+                  ],
                 ),
-              ],
-            )));
+              ),
+            ),
+            GestureDetector(
+              child: Text('Create an Account?'),
+              onTap: navigateToSignUp,
+            )
+          ],
+        ),
+      ),
+    ));
   }
 }
-
-void main() => runApp(new MaterialApp(
-    debugShowCheckedModeBanner: false,
-    home: new Scaffold(
-        appBar: new AppBar(title: new Text('KazTravel registration')),
-        body: new MyForm())));
